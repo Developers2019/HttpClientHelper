@@ -1,21 +1,26 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RestoreSources>https://api.nuget.org/v3/index.json</RestoreSources>
     <PackageId>HttpClientLibrary.04.17.24.001</PackageId>
-    <Version>1.0.0</Version>
+    <Version>1.0.1</Version>
     <Authors>Mpucuko Ndlazi</Authors>
     <Company>Peak Hit</Company>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Description>Typed HttpClient helper with Polly resilience policies for retries and circuit-breaker, plus helper methods for JSON and form posts.</Description>
+    <RepositoryUrl>https://github.com/Developers2019/HttpClientHelper</RepositoryUrl>
+    <PackageReleaseNotes>Updated package with latest code changes and fixes.</PackageReleaseNotes>
+    <PackageTags>httpclient;polly;resilience;http</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
+    <PackageReference Include="Polly" Version="7.2.4" />
+    <PackageReference Include="Polly.Extensions.Http" Version="3.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Http.Polly" Version="8.0.0" />
   </ItemGroup>
-
-  
 
 </Project>

@@ -1,109 +1,138 @@
 ﻿using HttpClientLibrary.Model;
 using System.Net.Http.Json;
+using System.Text.Json;
+using System.Threading;
+using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 
-namespace HttpClientLibrary.HttpClientService
+namespace HttpClientLibrary.HttpClientService;
+
+public class HttpClientHelper(
+    HttpClient httpClient,
+    ILogger<HttpClientHelper>? logger = null,
+    JsonSerializerOptions? jsonOptions = null) : IHttpClientHelper
 {
-    public class HttpClientHelper(HttpClient _httpClient) : IHttpClientHelper
+    private readonly HttpClient _httpClient = httpClient;
+    private readonly ILogger? _logger = logger;
+    private readonly JsonSerializerOptions _jsonOptions = jsonOptions ?? new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+    public async Task<List<T>> HttpRetrieveAllAsync<T>(string requestUri, CancellationToken cancellationToken = default)
     {
-        /// <summary>
-        /// Retrieves a list of items from the specified URI asynchronously.
-        /// </summary>
-        /// <typeparam name="T">The type of items to retrieve.</typeparam>
-        /// <param name="RequestUri">The URI of the resource to retrieve.</param>
-        /// <returns>A task that represents the asynchronous operation. The task result contains a list of items of type <typeparamref name="T"/>.</returns>
-        public async Task<List<T>> HttpRetrieveAllAsync<T>(string RequestUri)
+        using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
+        return await SendRequestAsync<List<T>>(request, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<T> HttpRetrieveByIdAsync<T>(string requestUri, CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
+        return await SendRequestAsync<T>(request, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<HttpResponseMessage> HttpPostAsync<T>(string requestUri, T model, CancellationToken cancellationToken = default)
+    {
+        var sw = Stopwatch.StartNew();
+        try
         {
-            var httpResponse = await _httpClient.GetAsync(RequestUri);
-            httpResponse.EnsureSuccessStatusCode();
-
-            var result = await httpResponse.Content.ReadFromJsonAsync<List<T>>();
-
-            return result!;
-        }
-
-        /// <summary>
-        /// Retrieves an item by ID from the specified URI asynchronously.
-        /// </summary>
-        /// <typeparam name="T">The type of item to retrieve.</typeparam>
-        /// <param name="RequestUri">The URI of the resource to retrieve.</param>
-        /// <returns>A task that represents the asynchronous operation. The task result contains an item of type <typeparamref name="T"/>.</returns>
-        public async Task<T> HttpRetrieveByIdAsync<T>(string RequestUri)
-        {
-            var httpResponse = await _httpClient.GetAsync(RequestUri);
-            httpResponse.EnsureSuccessStatusCode();
-
-            var result = await httpResponse.Content.ReadFromJsonAsync<T>();
-
-            return result!;
-        }
-
-        /// <summary>
-        /// Sends a POST request with a model to the specified URI asynchronously.
-        /// </summary>
-        /// <typeparam name="T">The type of the model to send.</typeparam>
-        /// <param name="RequestUri">The URI of the resource to send the request to.</param>
-        /// <param name="model">The model to send in the request body.</param>
-        /// <returns>A task that represents the asynchronous operation. The task result contains the HTTP response message.</returns>
-        public async Task<HttpResponseMessage> HttpPostAsync<T>(string RequestUri, T model)
-        {
-            var httpResponse = await _httpClient.PostAsJsonAsync(RequestUri, model);
-            httpResponse.EnsureSuccessStatusCode();
-
-            return httpResponse;
-        }
-
-        /// <summary>
-        /// Sends a PUT request with a model to the specified URI asynchronously.
-        /// </summary>
-        /// <typeparam name="T">The type of the model to send.</typeparam>
-        /// <param name="RequestUri">The URI of the resource to send the request to.</param>
-        /// <param name="model">The model to send in the request body.</param>
-        /// <returns>A task that represents the asynchronous operation. The task result contains the HTTP response message.</returns>
-        public async Task<HttpResponseMessage> HttpPutAsync<T>(string RequestUri, T model)
-        {
-            var httpResponse = await _httpClient.PutAsJsonAsync(RequestUri, model);
-            httpResponse.EnsureSuccessStatusCode();
-
-            return httpResponse;
-        }
-
-        /// <summary>
-        /// Sends a DELETE request to the specified URI asynchronously.
-        /// </summary>
-        /// <param name="RequestUri">The URI of the resource to delete.</param>
-        /// <returns>A task that represents the asynchronous operation. The task result contains the HTTP response message.</returns>
-        public async Task<HttpResponseMessage> HttpDeleteAsync(string RequestUri)
-        {
-            var httpResponse = await _httpClient.DeleteAsync(RequestUri);
-            httpResponse.EnsureSuccessStatusCode();
-
-            return httpResponse;
-        }
-
-        /// <summary>
-        /// Retrieves an access token using the specified access token model asynchronously.
-        /// </summary>
-        /// <param name="model">The access token model containing the necessary parameters.</param>
-        /// <returns>A task that represents the asynchronous operation. The task result contains the HTTP response message.</returns>
-        public async Task<HttpResponseMessage> HttpRetrieveAccessTokenAsync(AccessTokenModel model)
-        {
-            List<KeyValuePair<string, string>> keyValues = 
-            [
-                new KeyValuePair<string, string>("username", model.Username),
-                new KeyValuePair<string, string>("password", model.Password),
-                new KeyValuePair<string, string>("grant_type", model.GrantType)
-            ];
-
-            HttpRequestMessage request = new(HttpMethod.Post, model.RequestUrl)
-            {
-                Content = new FormUrlEncodedContent(keyValues)
-            };
-
-            var response = await _httpClient.SendAsync(request);
+            var response = await _httpClient.PostAsJsonAsync(requestUri, model, _jsonOptions, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
-
             return response;
         }
+        finally
+        {
+            sw.Stop();
+            _logger?.LogInformation("POST {Uri} took {Elapsed}ms", requestUri, sw.ElapsedMilliseconds);
+        }
+    }
 
+    public async Task<HttpResponseMessage> HttpPutAsync<T>(string requestUri, T model, CancellationToken cancellationToken = default)
+    {
+        var sw = Stopwatch.StartNew();
+        try
+        {
+            var response = await _httpClient.PutAsJsonAsync(requestUri, model, _jsonOptions, cancellationToken).ConfigureAwait(false);
+            response.EnsureSuccessStatusCode();
+            return response;
+        }
+        finally
+        {
+            sw.Stop();
+            _logger?.LogInformation("PUT {Uri} took {Elapsed}ms", requestUri, sw.ElapsedMilliseconds);
+        }
+    }
+
+    public async Task<HttpResponseMessage> HttpDeleteAsync(
+        string requestUri,
+        CancellationToken cancellationToken = default)
+    {
+        var sw = Stopwatch.StartNew();
+        try
+        {
+            var response = await _httpClient.DeleteAsync(requestUri, cancellationToken).ConfigureAwait(false);
+            response.EnsureSuccessStatusCode();
+            return response;
+        }
+        finally
+        {
+            sw.Stop();
+            _logger?.LogInformation("DELETE {Uri} took {Elapsed}ms", requestUri, sw.ElapsedMilliseconds);
+        }
+    }
+
+    public async Task<HttpResponseMessage> HttpRetrieveAccessTokenAsync(
+        AccessTokenModel model,
+        CancellationToken cancellationToken = default)
+    {
+        Dictionary<string, string> formData = new()
+        {
+            { "username", model.Username },
+            { "password", model.Password },
+            { "grant_type", model.GrantType }
+        };
+        return await HttpPostFormAsync(model.RequestUrl, formData, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<T> SendRequestAsync<T>(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
+    {
+        var sw = Stopwatch.StartNew();
+        try
+        {
+            using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+            _logger?.LogInformation("{Method} {Uri} returned {StatusCode}", request.Method, request.RequestUri, response.StatusCode);
+            response.EnsureSuccessStatusCode();
+
+            var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+            var result = await JsonSerializer.DeserializeAsync<T>(stream, _jsonOptions, cancellationToken).ConfigureAwait(false);
+            if (result == null)
+                throw new InvalidOperationException("Deserialized response was null.");
+
+            return result;
+        }
+        finally
+        {
+            sw.Stop();
+            _logger?.LogInformation("{Method} {Uri} took {Elapsed}ms", request.Method, request.RequestUri, sw.ElapsedMilliseconds);
+        }
+    }
+
+    private async Task<HttpResponseMessage> HttpPostFormAsync(
+        string requestUri,
+        Dictionary<string, string> formData,
+        CancellationToken cancellationToken = default)
+    {
+        var sw = Stopwatch.StartNew();
+        try
+        {
+            using var content = new FormUrlEncodedContent(formData);
+            var response = await _httpClient.PostAsync(requestUri, content, cancellationToken).ConfigureAwait(false);
+            response.EnsureSuccessStatusCode();
+            return response;
+        }
+        finally
+        {
+            sw.Stop();
+            _logger?.LogInformation("POST-FORM {Uri} took {Elapsed}ms", requestUri, sw.ElapsedMilliseconds);
+        }
     }
 }
