@@ -1,9 +1,8 @@
 ﻿using HttpClientLibrary.Model;
-using System.Net.Http.Json;
-using System.Text.Json;
-using System.Threading;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
+using System.Net.Http.Json;
+using System.Text.Json;
 
 namespace HttpClientLibrary.HttpClientService;
 
@@ -103,10 +102,7 @@ public class HttpClientHelper(
             response.EnsureSuccessStatusCode();
 
             var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-            var result = await JsonSerializer.DeserializeAsync<T>(stream, _jsonOptions, cancellationToken).ConfigureAwait(false);
-            if (result == null)
-                throw new InvalidOperationException("Deserialized response was null.");
-
+            var result = await JsonSerializer.DeserializeAsync<T>(stream, _jsonOptions, cancellationToken).ConfigureAwait(false) ?? throw new InvalidOperationException("Deserialized response was null.");
             return result;
         }
         finally

@@ -1,15 +1,10 @@
-using System;
-using System.Net.Http;
-using System.Collections.Generic;
+using HttpClientLibrary.HttpClientService;
 using Microsoft.Extensions.DependencyInjection;
 using Polly;
 using Polly.Extensions.Http;
-using Polly.Retry;
-using Polly.CircuitBreaker;
 using Polly.Timeout;
-using HttpClientLibrary.HttpClientService;
 
-namespace HttpClientLibrary.DependencyInjection
+namespace HttpClientLibrary.Samples
 {
     /// <summary>
     /// Extension methods to register the HttpClientHelper with DI and Polly resilience policies.
@@ -32,12 +27,12 @@ namespace HttpClientLibrary.DependencyInjection
             int exceptionsAllowedBeforeBreaking = 5,
             TimeSpan? breakDuration = null)
         {
-            var delays = retryDelays ?? new[]
-            {
+            var delays = retryDelays ??
+            [
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(2),
                 TimeSpan.FromSeconds(5)
-            };
+            ];
 
             var breakDur = breakDuration ?? TimeSpan.FromSeconds(30);
 
